@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 from slack_sdk import WebClient
 from notion_client import Client
-from pydub import AudioSegment
 
 # ━━━ 프롬프트 정의 ━━━
 ALEX_SYSTEM_PROMPT = """당신은 회의록 작성팀의 'Alex'입니다. 오디오 데이터를 텍스트로 전환하고 화자를 구분하는 전문가입니다.
@@ -124,18 +123,7 @@ def send_to_notion(token, database_id, title, content):
         st.error(f"Notion 전송 실패: {e}")
         return False
 
-def split_audio(file_path, chunk_length_ms=600000): # 기본 10분(600,000ms)
-    """
-    긴 오디오 파일을 설정된 시간(기본 10분) 단위로 분할합니다.
-    (VRAM 최적화용)
-    """
-    try:
-        audio = AudioSegment.from_file(file_path)
-        chunks = [audio[i:i + chunk_length_ms] for i in range(0, len(audio), chunk_length_ms)]
-        return chunks
-    except Exception as e:
-        st.warning(f"오디오 분할을 위해 ffmpeg이 필요합니다. {e}")
-        return None
+
 
 def audio_to_base64(audio_bytes):
     return base64.b64encode(audio_bytes).decode("utf-8")

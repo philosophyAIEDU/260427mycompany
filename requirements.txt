@@ -2,4 +2,3 @@ streamlit
 requests==2.31.0
 slack_sdk==3.27.1
 notion-client==2.2.1
-pydub==0.25.1
