@@ -59,14 +59,15 @@ def call_ollama(model, prompt, audio=None, context=None):
     Ollama API를 호출하는 헬퍼 함수
     * 실제 구현 시 Ollama 멀티모달(오디오) 규격에 맞춰 수정 필요
     """
-    # 임시 모의 응답
-    time.sleep(2)
-    if "Alex" in prompt:
-        return "■ 전체 스크립트\n[화자 1] 이번 프로젝트 진행 상황 공유 부탁드립니다.\n[화자 2] 네, 현재 80% 완료되었습니다.\n■ 주요 키워드 리스트\n- 프로젝트, 진행률"
-    elif "Mia" in prompt:
-        return "■ 핵심 요약\n프로젝트가 원활하게 진행 중임.\n■ 결정 사항\n기한 내 완료 목표.\n■ 미결 과제\nQA 일정 조율."
-    else:
-        return "━━━ 📋 최종 회의록 ━━━\n프로젝트 80% 완료.\n━━━ 🎯 Action Items ━━━\n- [ ] QA 일정 조율 / 김대리 / 이번주\n━━━ 📲 Slack 알림 메시지 ━━━\n🚀 프로젝트 현황: 80% 달성 완료. 이번 주 QA 일정 조율 바랍니다."
+    with st.spinner(f"[{model}] 모델이 분석을 진행 중입니다... (약간의 시간이 소요될 수 있습니다)"):
+        # 임시 모의 응답
+        time.sleep(2)
+        if "Alex" in prompt:
+            return "■ 전체 스크립트\n[화자 1] 이번 프로젝트 진행 상황 공유 부탁드립니다.\n[화자 2] 네, 현재 80% 완료되었습니다.\n■ 주요 키워드 리스트\n- 프로젝트, 진행률"
+        elif "Mia" in prompt:
+            return "■ 핵심 요약\n프로젝트가 원활하게 진행 중임.\n■ 결정 사항\n기한 내 완료 목표.\n■ 미결 과제\nQA 일정 조율."
+        else:
+            return "━━━ 📋 최종 회의록 ━━━\n프로젝트 80% 완료.\n━━━ 🎯 Action Items ━━━\n- [ ] QA 일정 조율 / 김대리 / 이번주\n━━━ 📲 Slack 알림 메시지 ━━━\n🚀 프로젝트 현황: 80% 달성 완료. 이번 주 QA 일정 조율 바랍니다."
 
 
 
