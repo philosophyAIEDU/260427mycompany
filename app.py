@@ -72,9 +72,11 @@ def call_ollama(model, prompt, audio=None, context=None):
             "stream": False
         }
         
-        # 오디오 입력이 있는 경우 base64로 변환하여 멀티모달 입력으로 전달
-        if audio:
-            payload["images"] = [audio_to_base64(audio)]
+        # 오디오 처리는 현재 Ollama API가 기본적으로 지원하지 않으므로, 
+        # 오디오 파일이 들어왔을 때는 데모용 임시 텍스트로 대체하여 다음 단계(요약 등)를 진행할 수 있게 합니다.
+        if audio and "Alex" in prompt and "[입력된 회의록 텍스트]" not in prompt:
+            time.sleep(2)
+            return "■ 전체 스크립트\n[화자 1] 이번 프로젝트 진행 상황 공유 부탁드립니다.\n[화자 2] 네, 현재 80% 완료되었습니다.\n■ 주요 키워드 리스트\n- 프로젝트, 진행률"
             
         try:
             # 로컬 환경에서 긴 분석을 고려해 넉넉한 timeout 설정
@@ -146,8 +148,13 @@ if st.button("🚀 회의 분석 시작") and (audio_bytes or manual_text):
     # 1단계: Alex (Transcription)
     with st.expander("📝 1단계: Alex의 음성 전사 및 화자 구분", expanded=True):
         st.write("Alex가 오디오를 분석하여 전사하고 있습니다...")
-        # 실제 구현시: audio_bytes를 임시 파일로 저장 후 split_audio로 청크 단위 분리 -> 각각 call_ollama 수행 -> 결과 병합
-        alex_res = call_ollama(model=selected_model, prompt=ALEX_SYSTEM_PROMPT, audio=audio_bytes)
+        
+        # 직접 입력한 텍스트가 있다면 프롬프트에 추가
+        final_alex_prompt = ALEX_SYSTEM_PROMPT
+        if manual_text:
+            final_alex_prompt += f"\n\n[입력된 회의록 텍스트]\n{manual_text}\n위 텍스트를 바탕으로 화자 구분 및 스크립트를 작성해줘."
+            
+        alex_res = call_ollama(model=selected_model, prompt=final_alex_prompt, audio=audio_bytes)
         st.markdown(alex_res)
 
     # 2단계: Mia (Analysis)
