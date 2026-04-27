@@ -86,7 +86,7 @@ with st.sidebar:
     # 모델 서버 상태 확인
     st.subheader("📡 서버 상태")
     try:
-        res = requests.get("http://localhost:11434/")
+        res = requests.get("http://127.0.0.1:11434/", timeout=3)
         if res.status_code == 200:
             st.success("🟢 모델 서버 연결 정상 (Ollama 실행 중)")
         else:
