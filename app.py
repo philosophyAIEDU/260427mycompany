@@ -5,8 +5,6 @@ import time
 import os
 import json
 from datetime import datetime
-from slack_sdk import WebClient
-from notion_client import Client
 
 # ━━━ 프롬프트 정의 ━━━
 ALEX_SYSTEM_PROMPT = """당신은 회의록 작성팀의 'Alex'입니다. 오디오 데이터를 텍스트로 전환하고 화자를 구분하는 전문가입니다.
@@ -70,59 +68,6 @@ def call_ollama(model, prompt, audio=None, context=None):
     else:
         return "━━━ 📋 최종 회의록 ━━━\n프로젝트 80% 완료.\n━━━ 🎯 Action Items ━━━\n- [ ] QA 일정 조율 / 김대리 / 이번주\n━━━ 📲 Slack 알림 메시지 ━━━\n🚀 프로젝트 현황: 80% 달성 완료. 이번 주 QA 일정 조율 바랍니다."
 
-def send_to_slack(token, channel, text):
-    try:
-        client = WebClient(token=token)
-        client.chat_postMessage(channel=channel, text=text)
-        return True
-    except Exception as e:
-        st.error(f"Slack 전송 실패: {e}")
-        return False
-
-def send_to_notion(token, database_id, title, content):
-    """
-    최종 회의록을 Notion Database의 새로운 페이지로 저장하는 함수
-    """
-    try:
-        notion = Client(auth=token)
-        
-        # 텍스트가 너무 길 경우 2000자씩 분할(Notion API Block 한계)
-        blocks = []
-        chunks = [content[i:i+2000] for i in range(0, len(content), 2000)]
-        for chunk in chunks:
-            blocks.append({
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [
-                        {
-                            "type": "text",
-                            "text": {"content": chunk}
-                        }
-                    ]
-                }
-            })
-
-        new_page = {
-            "parent": {"database_id": database_id},
-            "properties": {
-                "이름": {
-                    "title": [
-                        {
-                            "text": {"content": title}
-                        }
-                    ]
-                }
-            },
-            "children": blocks
-        }
-        
-        notion.pages.create(**new_page)
-        return True
-    except Exception as e:
-        st.error(f"Notion 전송 실패: {e}")
-        return False
-
 
 
 def audio_to_base64(audio_bytes):
@@ -136,13 +81,18 @@ st.title("🎙️ 개인용 AI 회의록 팀 (Local Gemma 4)")
 with st.sidebar:
     st.header("⚙️ 설정")
     
-    with st.expander("Slack 연동 설정", expanded=False):
-        slack_token = st.text_input("Slack Bot Token", type="password")
-        slack_channel = st.text_input("Channel ID (예: #general)")
-        
-    with st.expander("Notion 연동 설정", expanded=False):
-        notion_token = st.text_input("Notion Integration Token", type="password")
-        notion_db_id = st.text_input("Notion Database ID")
+    selected_model = st.selectbox("사용할 모델 선택", ["gemma4:26b", "gemma4:e4b"])
+    
+    # 모델 서버 상태 확인
+    st.subheader("📡 서버 상태")
+    try:
+        res = requests.get("http://localhost:11434/")
+        if res.status_code == 200:
+            st.success("🟢 모델 서버 연결 정상 (Ollama 실행 중)")
+        else:
+            st.warning("🟡 모델 서버 응답 이상")
+    except:
+        st.error("🔴 모델 서버 연결 실패 (Ollama 실행 확인)")
         
     st.markdown("---")
     
@@ -179,44 +129,17 @@ if st.button("🚀 회의 분석 시작") and (audio_bytes or manual_text):
     with st.expander("📝 1단계: Alex의 음성 전사 및 화자 구분", expanded=True):
         st.write("Alex가 오디오를 분석하여 전사하고 있습니다...")
         # 실제 구현시: audio_bytes를 임시 파일로 저장 후 split_audio로 청크 단위 분리 -> 각각 call_ollama 수행 -> 결과 병합
-        alex_res = call_ollama(model="gemma4:e2b", prompt=ALEX_SYSTEM_PROMPT, audio=audio_bytes)
+        alex_res = call_ollama(model=selected_model, prompt=ALEX_SYSTEM_PROMPT, audio=audio_bytes)
         st.markdown(alex_res)
 
     # 2단계: Mia (Analysis)
     with st.expander("🔍 2단계: Mia의 핵심 인사이트 분석"):
-        st.write("Mia가 회의록의 숨은 가치를 분석 중입니다...")
-        mia_res = call_ollama(model="gemma4:e4b", prompt=MIA_SYSTEM_PROMPT, context=alex_res)
+        st.write(f"Mia가 회의록의 숨은 가치를 분석 중입니다... (선택 모델: {selected_model})")
+        mia_res = call_ollama(model=selected_model, prompt=MIA_SYSTEM_PROMPT, context=alex_res)
         st.markdown(mia_res)
 
     # 3단계: Chris (Final Report & Slack/Notion)
     with st.expander("📋 3단계: Chris의 액션 아이템 & 공유", expanded=True):
-        st.write("Chris가 최종 회의록과 액션 아이템을 정리하고 있습니다...")
-        chris_res = call_ollama(model="gemma4:e4b", prompt=CHRIS_SYSTEM_PROMPT, context=mia_res)
+        st.write(f"Chris가 최종 회의록과 액션 아이템을 정리하고 있습니다... (선택 모델: {selected_model})")
+        chris_res = call_ollama(model=selected_model, prompt=CHRIS_SYSTEM_PROMPT, context=mia_res)
         st.markdown(chris_res)
-        
-        # 외부 전송 버튼 영역
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if slack_token and slack_channel:
-                if st.button("📲 Slack으로 요약 전송", use_container_width=True):
-                    # Chris의 출력물 중 Slack 섹션만 파싱
-                    try:
-                        slack_msg = chris_res.split("━━━ 📲 Slack")[1].strip() if "━━━ 📲 Slack" in chris_res else chris_res
-                    except:
-                        slack_msg = chris_res
-                        
-                    if send_to_slack(slack_token, slack_channel, slack_msg):
-                        st.success("✅ Slack 전송 완료!")
-            else:
-                st.button("📲 Slack으로 요약 전송", use_container_width=True, disabled=True, help="사이드바에서 Slack 설정을 완료해주세요.")
-                
-        with col2:
-            if notion_token and notion_db_id:
-                if st.button("💾 Notion에 회의록 아카이빙", use_container_width=True):
-                    title = f"📝 [{datetime.now().strftime('%Y-%m-%d')}] AI 회의록 요약"
-                    if send_to_notion(notion_token, notion_db_id, title, chris_res):
-                        st.success("✅ Notion 아카이빙 완료!")
-            else:
-                st.button("💾 Notion에 회의록 아카이빙", use_container_width=True, disabled=True, help="사이드바에서 Notion 설정을 완료해주세요.")
