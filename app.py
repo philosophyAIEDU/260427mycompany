@@ -60,14 +60,31 @@ def call_ollama(model, prompt, audio=None, context=None):
     * 실제 구현 시 Ollama 멀티모달(오디오) 규격에 맞춰 수정 필요
     """
     with st.spinner(f"[{model}] 모델이 분석을 진행 중입니다... (약간의 시간이 소요될 수 있습니다)"):
-        # 임시 모의 응답
-        time.sleep(2)
-        if "Alex" in prompt:
-            return "■ 전체 스크립트\n[화자 1] 이번 프로젝트 진행 상황 공유 부탁드립니다.\n[화자 2] 네, 현재 80% 완료되었습니다.\n■ 주요 키워드 리스트\n- 프로젝트, 진행률"
-        elif "Mia" in prompt:
-            return "■ 핵심 요약\n프로젝트가 원활하게 진행 중임.\n■ 결정 사항\n기한 내 완료 목표.\n■ 미결 과제\nQA 일정 조율."
-        else:
-            return "━━━ 📋 최종 회의록 ━━━\n프로젝트 80% 완료.\n━━━ 🎯 Action Items ━━━\n- [ ] QA 일정 조율 / 김대리 / 이번주\n━━━ 📲 Slack 알림 메시지 ━━━\n🚀 프로젝트 현황: 80% 달성 완료. 이번 주 QA 일정 조율 바랍니다."
+        url = "http://127.0.0.1:11434/api/generate"
+        
+        final_prompt = prompt
+        if context:
+            final_prompt += f"\n\n[이전 분석 내용]\n{context}"
+            
+        payload = {
+            "model": model,
+            "prompt": final_prompt,
+            "stream": False
+        }
+        
+        # 오디오 입력이 있는 경우 base64로 변환하여 멀티모달 입력으로 전달
+        if audio:
+            payload["images"] = [audio_to_base64(audio)]
+            
+        try:
+            # 로컬 환경에서 긴 분석을 고려해 넉넉한 timeout 설정
+            response = requests.post(url, json=payload, timeout=600)
+            if response.status_code == 200:
+                return response.json().get("response", "")
+            else:
+                return f"⚠️ 모델 서버 응답 오류: {response.text}"
+        except Exception as e:
+            return f"⚠️ API 호출 실패: {str(e)}"
 
 
 
